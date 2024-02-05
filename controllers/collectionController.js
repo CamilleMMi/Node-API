@@ -1,6 +1,7 @@
 const Collection = require('../models/collectionModel');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/userModel');
+const encryption = require('../utils/encryption');
 
 // Return all collections
 const getCollections = asyncHandler(async (req, res) => {
@@ -17,11 +18,20 @@ const getCollections = asyncHandler(async (req, res) => {
 const getCollectionFromId = asyncHandler(async (req, res) => {
     try {
         const { id } = req.params;
+        const { decrypt } = req.query;
+
         const collection = await Collection.findById(id);
 
         if (!collection) {
             res.status(404);
             throw new Error(`Cannot find any collection with ID ${id}`);
+        }
+
+        if (decrypt) {
+            collection.passwords.forEach(password => {
+                password.login = encryption.decryptData(password.login);
+                password.password = encryption.decryptData(password.password);
+            });
         }
 
         res.status(200).json(collection);
@@ -120,7 +130,7 @@ const createCollection = asyncHandler(async (req, res) => {
 const addPasswordToCollection = asyncHandler(async (req, res) => {
     try {
         const { id } = req.params;
-        const { login, password, commentaire } = req.body;
+        let { login, password, commentaire } = req.body;
 
         const collection = await Collection.findById(id);
 
@@ -129,20 +139,16 @@ const addPasswordToCollection = asyncHandler(async (req, res) => {
             throw new Error(`Cannot find any collection with the id: ${id}`);
         }
 
-        const updatedCollection = await Collection.findByIdAndUpdate(
-            id,
-            {
-                $push: {
-                    passwords: {
-                        login,
-                        password,
-                        commentaire
-                    }
-                }
-            },
-  
-            { new: true }
-        );
+        login = encryption.encryptData(login);
+        password = encryption.encryptData(password);
+
+        collection.passwords.push({
+            login,
+            password,
+            commentaire
+        });
+
+        const updatedCollection = await collection.save();
 
         res.status(200).json({ collection: updatedCollection });
     } catch (error) {
@@ -202,17 +208,27 @@ const addUserToSharedCollection = asyncHandler(async (req, res) => {
 const putCollection = asyncHandler(async (req, res) => {
     try {
         const { id } = req.params;
-        const collection = await Collection.findByIdAndUpdate(id, req.body);
+        const updatedInfo = Object.keys(req.body);
+
+        const collection = await Collection.findById(id);
 
         if (!collection) {
             res.status(404);
             throw new Error(`Cannot find any collection with the id: ${id}`);
         }
 
+        updatedInfo.forEach(field => 
+                collection[field] = req.body[field]
+        );
+
         const updateUsers = await User.updateMany(
             { "collections.id": collection._id },
             { $set: { "collections.$.name": collection.name }}
-        )
+        );
+
+        await collection.save(
+            { new: true }
+        );
 
         res.status(200).json({ collection, updateUsers });
     } catch (error) {
@@ -225,7 +241,7 @@ const putCollection = asyncHandler(async (req, res) => {
 const updatePasswordInCollection = asyncHandler(async (req, res) => {
     try {
         const { collectionId, passwordId } = req.params;
-        const { login, password, commentaire } = req.body;
+        const password = req.body
 
         const collection = await Collection.findById(collectionId);
 
@@ -238,22 +254,16 @@ const updatePasswordInCollection = asyncHandler(async (req, res) => {
 
         if (!passwordExists) {
             res.status(404);
-            throw new Error(`Cannot find any password with the id: ${passwordId} in the collection`);
+            throw new Error(`Cannot find any password with the id: ${passwordId} in the collection with the id: ${collectionId}`);
         }
 
-        const updatedCollection = await Collection.findOneAndUpdate(
-            { _id: collectionId, "passwords._id": passwordId },
+        const passwordObject = collection.passwords.find(p => p._id.equals(passwordId));
 
-            {
-                $set: {
-                    "passwords.$.login": login,
-                    "passwords.$.password": password,
-                    "passwords.$.commentaire": commentaire
-                }
-            },
+        passwordObject.login = password.login ? encryption.encryptData(password.login) : passwordObject.login;
+        passwordObject.password = password.password ? encryption.encryptData(password.password) : passwordObject.password;
+        passwordObject.commentaire = password.commentaire ? password.commentaire : "";
 
-            { new: true }
-        );
+        const updatedCollection = await collection.save();
 
         res.status(200).json({ collection: updatedCollection });
     } catch (error) {
@@ -261,6 +271,7 @@ const updatePasswordInCollection = asyncHandler(async (req, res) => {
         throw new Error(error.message);
     }
 });
+
 
 // Delete a collection using its ID
 // TODO FAIRE EN SORTE QUE SI DELETE ET QUE PAS OWNER JUSTE SUPPRESSION DU TABLEAU ET NON SUPPRESSION DE LA COLLECTION

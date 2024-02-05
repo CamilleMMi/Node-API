@@ -1,6 +1,49 @@
 const User = require('../models/userModel');
 const asyncHandler = require('express-async-handler');
 
+// Let the user log into Fiddle
+const login = asyncHandler(async(req, res) => {
+    try {
+        const user = await User.login(req.body.email, req.body.password);
+        const authToken = await user.generateAuthTokenAndSaveUser();
+
+        res.send({ user, authToken });
+    } catch (error) {
+        res.status(500);
+        throw new Error(error.message);
+    }
+})
+
+// Logout a user from his current device
+const logout = asyncHandler(async(req, res) => {
+    try {
+        req.user.authTokens = req.user.authTokens.filter((authToken) => {
+            return authToken.authToken !== req.authToken;
+        })
+
+        await req.user.save();
+
+        res.send();
+    } catch (error) {
+        res.status(500);
+        throw new Error(error.message);
+    }
+})
+
+// Logout a user from every device
+const logoutAll = asyncHandler(async(req, res) => {
+    try {
+        req.user.authTokens = [];
+
+        await req.user.save();
+
+        res.send();
+    } catch (error) {
+        res.status(500);
+        throw new Error(error.message);
+    }
+})
+
 // Return all users
 const getUsers = asyncHandler(async(req, res) => {
     try {
@@ -20,7 +63,7 @@ const getUserFromId = asyncHandler(async(req, res) => {
         
         if (!user) {
             res.status(404);
-            throw new Error(`Cannot find any user with ID ${id}`);
+            throw new Error(`Cannot find any user with ID: ${id}`);
         }
 
         res.status(200).json(user);
@@ -31,10 +74,11 @@ const getUserFromId = asyncHandler(async(req, res) => {
 })
 
 // Create a user
+// TODO CREATE + LOGIN
 const createUser = asyncHandler(async(req, res) => {
     try {
-        const user = await User.create(req.body)
-        res.status(200).json(user)
+        const user = await User.create(req.body);
+        res.status(200).json(user);
     } catch (error) {
         res.status(500);
         throw new Error(error.message);
@@ -45,14 +89,24 @@ const createUser = asyncHandler(async(req, res) => {
 const putUser = asyncHandler(async(req, res) => {
     try {
         const { id } = req.params;
-        const user = await User.findByIdAndUpdate(id, req.body);
+        const updatedInfo = Object.keys(req.body);
+
+        const user = await User.findById(id);
         
         if(!user) {
             res.status(404)
-            throw new Error(`Cannot find any user with the id: ${id}`);
+            throw new Error(`Cannot find any user with ID: ${id}`);
         }
 
-        res.status(200).json({user});
+        updatedInfo.forEach(field => user[field] = req.body[field]);
+
+        console.log(user);
+
+        await user.save(
+            { new: true }
+        );
+
+        res.status(200).json({ user });
     } catch (error) {
         res.status(500);
         throw new Error(error.message);
@@ -67,7 +121,7 @@ const deleteUser = asyncHandler(async(req, res) => {
 
         if(!user) {
             res.status(404)
-            throw new Error(`Cannot find any user with the id: ${id}`);
+            throw new Error(`Cannot find any user with ID: ${id}`);
         }
 
         res.status(200).send();
@@ -78,6 +132,9 @@ const deleteUser = asyncHandler(async(req, res) => {
 })
 
 module.exports = {
+    login,
+    logout,
+    logoutAll,
     getUsers,
     getUserFromId,
     createUser,

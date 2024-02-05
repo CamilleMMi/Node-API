@@ -1,16 +1,12 @@
 const express = require('express');
-const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const errorMiddleware = require('./middleware/errorMiddleware');
 const cors = require('cors');
+const configuration = require('./configuration/configuration');
 
 // Global variables
 
-dotenv.config();
-
-const MONGODB_URL = process.env.MONGODB_URL;
-const PORT = process.env.PORT;
-const FRONT_END = process.env.FRONT_END;
+const { mongodb_url, port, front_end } = configuration;
 
 // Routes
 
@@ -21,7 +17,7 @@ const playgroundRoute = require('./routes/playgroundRoute');
 // App config
 
 const corsOptions = {
-    origin: [FRONT_END, 'http://quelquechose.com'],
+    origin: [front_end, 'http://quelquechose.com'],
     optionsSuccessStatus: 200
 }
 
@@ -38,10 +34,10 @@ app.use(errorMiddleware);
 
 // Mongoose connection and launching app
 
-mongoose.connect(MONGODB_URL).then(() => {
+mongoose.connect(mongodb_url).then(() => {
     console.log('\nConnected to MongoDB')
-    app.listen(PORT, () => {
-        console.log(`Node API app is running on port ${PORT}\n`)
+    app.listen(port, () => {
+        console.log(`Node API app is running on port ${port}\n`)
     })
 }).catch((error) => {
     console.log(error)
