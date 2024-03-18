@@ -12,6 +12,7 @@ const { mongodb_url, port, front_end } = configuration;
 
 const userRoute = require('./routes/userRoute');
 const collectionRoute = require('./routes/collectionRoute');
+const reminderRoute = require('./routes/reminderRoute');
 const playgroundRoute = require('./routes/playgroundRoute');
 
 // App config
@@ -28,6 +29,7 @@ app.use(express.json());
 
 app.use('/user', userRoute);
 app.use('/collection', collectionRoute);
+app.use('/reminder', reminderRoute);
 app.use('/playground', playgroundRoute);
 
 app.use(errorMiddleware);

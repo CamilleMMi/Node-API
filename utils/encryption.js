@@ -8,10 +8,6 @@ if (!secret_key || !encryption_method || !iv_length) {
 }
 
 function encryptData(data) {
-
-    console.log('Entrée');
-    console.log(data);
-
     const iv = crypto.randomBytes(parseInt(iv_length));
     const cipher = crypto.createCipheriv(encryption_method, Buffer.from(secret_key, 'hex'), iv);
 

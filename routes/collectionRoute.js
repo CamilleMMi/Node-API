@@ -23,7 +23,7 @@ router.put('/:id', authentification, collectionController.putCollection);
 
 // PATCH //
 
-router.put('/:collectionId/password/:passwordId', authentification, collectionController.updatePasswordInCollection);
+router.patch('/:collectionId/password/:passwordId', authentification, collectionController.updatePasswordInCollection);
 
 // DELETES //
 
