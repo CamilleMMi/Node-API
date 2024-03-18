@@ -119,7 +119,6 @@ const createCollection = asyncHandler(async (req, res) => {
         )
             
         res.status(200).json({ collection, updateOwnerCollections });
-        
     } catch (error) {
         res.status(500);
         throw new Error(error.message);
